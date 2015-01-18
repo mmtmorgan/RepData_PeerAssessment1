@@ -1,25 +1,78 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+author: "Trevor Morgan"
+date: "January 18, 2015"
+output: html_document
 ---
 
+###Introduction:
+I will be using a sample dataset from a forked github repository.  This file is in the working directory of that the following analysis runs from.  The analysis and write-up is done in an R markdown file that is knit into a webpage.
 
 ## Loading and preprocessing the data
-
-
+```{r}
+setwd("/Users/mm57647/Desktop/Coursera_test/5-Reproducible_Research/Week2/Peer_Assessment1/RepData_PeerAssessment1")
+activity <- read.csv("activity.csv", colClasses = c("numeric", "character", "numeric"))
+head(activity)
+```
 
 ## What is mean total number of steps taken per day?
-
-
-
+```{r}
+#####Remove the "NA" values
+step_data <- aggregate(steps ~ date, data = activity, sum, na.rm = TRUE)
+#####Make a Histogram
+hist(step_data$steps, main = "Total Steps Each Day", xlab = "Steps per Day", ylab = "Number of Days", col = "blue")
+#####Compute the mean and median
+day_mean <- mean(step_data$steps)
+day_mean
+day_median <- median(step_data$steps)
+day_median
+```
 ## What is the average daily activity pattern?
-
-
+```{r}
+average_interval <- aggregate(steps ~ interval, data = activity, mean, na.rm = TRUE)
+plot(average_interval$interval, average_interval$steps, type="l", xlab="Interval", ylab="Number of Steps")
+max_interval <- average_interval[which.max(average_interval$steps),1]
+max_interval
+```
 
 ## Imputing missing values
+```{r}
+#############Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+sum(!complete.cases(activity))
+#############Devise a strategy for filling in all of the missing values in the dataset - use the average steps for that interval
+imputed_data <- transform(activity,
+                          steps = ifelse(is.na(activity$steps),
+                                         average_interval$steps[match(activity$interval, average_interval$interval)],
+                                         activity$steps
+                                        )
+                          )
 
+imputed_step_data <- aggregate(steps ~ date, imputed_data, sum)
+hist(imputed_step_data$steps, main = "Total Steps Each Day", xlab = "Steps per Day", ylab = "Number of Days", col = "blue")
 
+day_mean <- mean(imputed_step_data$steps)
+day_mean
+day_median <- median(imputed_step_data$steps)
+day_median
+```
+
+The mean and median are now equal.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+imputed_data$dayType <- as.Date(imputed_data$date)
+imputed_data$dayType <- ifelse(weekdays(imputed_data$dayType) %in%  c("Saturday", "Sunday"),'weekend','weekday')
+
+
+library(ggplot2)
+base_ggplot <- qplot(x=interval, y=steps, data=imputed_data, geom='smooth', stat='summary', fun.y=mean)
+
+complete_plot <- base_ggplot +
+                 facet_grid(dayType ~ .) +
+                 facet_wrap(~dayType,nrow=2) +
+                 theme(strip.background = element_rect(fill="#ffe5cc")) +
+                 labs(title='Average steps per day (weekdays vs weekends')
+print(complete_plot)
+```
+
+There is a higher peak early on the weekdays most likely for work/school starting, and more overall activity throughout the day on weekends.
